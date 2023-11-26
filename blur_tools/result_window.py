@@ -1,4 +1,5 @@
 import tkinter.filedialog
+import tkinter.messagebox
 from tkinter import *
 
 import customtkinter
@@ -20,8 +21,10 @@ class ResultWindow(customtkinter.CTk):
         super().geometry(f'{width}x{height}')
         super().title(title)
 
-        self.grid_rowconfigure(0, weight=1)
+        self.width = width
+        self.height = height
 
+        self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
 
         self.controlFrame = customtkinter.CTkFrame(master=self)
@@ -33,13 +36,15 @@ class ResultWindow(customtkinter.CTk):
         self.imageFrame.grid_columnconfigure(0, weight=1)
         self.imageFrame.grid_rowconfigure(0, weight=1)
 
-        self.imageCanvas = customtkinter.CTkCanvas(master=self.imageFrame, width=width, height=height)
+        self.imageCanvas = customtkinter.CTkCanvas(master=self.imageFrame,
+                                                   width=self.width - self.controlFrame.winfo_width(),
+                                                   height=self.height - 30)
         self.imageCanvas.grid(row=0, column=0, sticky="nsew")
-        self.imageCanvas.pack()
 
         self.blurController = customtkinter.CTkSlider(master=self.controlFrame,
-                                                      command=self.__on_blur_controller_changed, from_=0, to=100)
+                                                      command=self.__on_blur_controller_changed, from_=1, to=25)
         self.blurController.grid(row=0, column=0, padx=self.__padding, pady=self.__padding, sticky="nsew")
+        self.blurController.set(0)
 
         self.openImgBtn = customtkinter.CTkButton(master=self.controlFrame, text="Open image",
                                                   command=self.__on_open_img_btn_clicked)
@@ -48,17 +53,24 @@ class ResultWindow(customtkinter.CTk):
         self.saveImgBtn = customtkinter.CTkButton(master=self.controlFrame, text="Save image",
                                                   command=self.__on_save_img_btn_clicked)
 
+        self.imagePathLbl = customtkinter.CTkLabel(master=self.controlFrame, text="Undefined path")
+        self.imagePathLbl.grid(row=3, column=0, padx=self.__padding, pady=self.__padding, sticky="nsew")
 
+        self.renderTimeLbl = customtkinter.CTkLabel(master=self.controlFrame, text="Render time: undefined")
+        self.renderTimeLbl.grid(row=4, column=0, padx=self.__padding, pady=self.__padding, sticky="nsew")
 
         super().mainloop()
 
     def __on_blur_controller_changed(self, value):
         if self.__curr_opened_img is not None and isinstance(self.__curr_opened_img, Image.Image):
             self.__curr_img = blur.blur(value)
+            self.renderTimeLbl.configure(True, text=f"Render time: {blur.render_time} sec.")
             self.__update_image(self.__curr_img)
 
     def __on_save_img_btn_clicked(self):
-        self.__curr_img.save(self.__curr_opened_img_file_name[:-4] + "_blured" + self.__curr_opened_img_file_name[-4:])
+        path = self.__curr_opened_img_file_name[:-4] + "_blured" + self.__curr_opened_img_file_name[-4:]
+        self.__curr_img.save(path)
+        tkinter.messagebox.showinfo("Save info", f"Image saved. Path: {path}")
 
     def __on_open_img_btn_clicked(self):
         filetypes = (
@@ -67,20 +79,24 @@ class ResultWindow(customtkinter.CTk):
         )
 
         filename = tkinter.filedialog.askopenfilename(
-            title='Open a file',
+            title='Open an image to blur',
             initialdir='./images',
             filetypes=filetypes
         )
 
         if filename != '':
+            self.blurController.set(0)
             self.saveImgBtn.grid(row=2, column=0, padx=self.__padding, pady=self.__padding, sticky="nsew")
+            self.imagePathLbl.configure(True, text=filename[:30] + "...")
             self.__curr_opened_img_file_name = filename
-            self.__curr_opened_img = Image.open(filename)
+            self.__curr_opened_img = Image.open(filename).resize((self.imageCanvas.winfo_width(),
+                                                                  self.imageCanvas.winfo_height()))
             self.__update_image(self.__curr_opened_img)
             blur.set_image(self.__curr_opened_img)
 
     def __update_image(self, image):
         if self.__curr_opened_img is not None and isinstance(image, Image.Image):
+            self.__curr_img = image
             self.__curr_photo_img = ImageTk.PhotoImage(image)
             self.imageCanvas.config(height=image.height, width=image.width)
             self.imageCanvas.create_image(0, 0, anchor=NW, image=self.__curr_photo_img)
