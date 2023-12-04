@@ -3,9 +3,10 @@ import tkinter.messagebox
 from tkinter import *
 
 import customtkinter
-from PIL import Image, ImageTk, ImageFilter
 
-from blur_tools import blur
+from PIL import Image, ImageTk
+
+from util import blur
 
 
 class ResultWindow(customtkinter.CTk):
@@ -59,11 +60,20 @@ class ResultWindow(customtkinter.CTk):
         self.renderTimeLbl = customtkinter.CTkLabel(master=self.controlFrame, text="Render time: undefined")
         self.renderTimeLbl.grid(row=4, column=0, padx=self.__padding, pady=self.__padding, sticky="nsew")
 
+        self.deviceSwitchValue = customtkinter.StringVar(value="GPU")
+        self.deviceSwitch = customtkinter.CTkSwitch(master=self.controlFrame, text=self.deviceSwitchValue.get(),
+                                                    command=self.__on_switch_changed,
+                                                    variable=self.deviceSwitchValue, onvalue="GPU", offvalue="CPU")
+        self.deviceSwitch.grid(row=0, column=1, padx=self.__padding, pady=self.__padding, sticky="nsew")
+
         super().mainloop()
+
+    def __on_switch_changed(self):
+        self.deviceSwitch.configure(require_redraw=True, text=self.deviceSwitchValue.get())
 
     def __on_blur_controller_changed(self, value):
         if self.__curr_opened_img is not None and isinstance(self.__curr_opened_img, Image.Image):
-            self.__curr_img = blur.blur(value)
+            self.__curr_img = blur.blur(value, self.deviceSwitchValue.get())
             self.renderTimeLbl.configure(True, text=f"Render time: {blur.render_time} sec.")
             self.__update_image(self.__curr_img)
 
